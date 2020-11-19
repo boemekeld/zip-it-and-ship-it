@@ -92,14 +92,21 @@ const getFileDependencies = async function(path, packageJson, state) {
 // `require()` statements can be either `require('moduleName')` or
 // `require(path)`
 const getImportDependencies = function(dependency, basedir, packageJson, state) {
-  if (LOCAL_IMPORT_REGEXP.test(dependency)) {
+  const moduleName = getModuleName(dependency)
+  if (LOCAL_IMPORT_REGEXP.test(dependency) || isTreeShakable(moduleName)) {
     return getLocalImportDependencies(dependency, basedir, packageJson, state)
   }
 
-  return getModuleDependencies(dependency, basedir, state, packageJson)
+  return getModuleDependencies(moduleName, basedir, state, packageJson)
 }
 
 const LOCAL_IMPORT_REGEXP = /^(\.|\/)/
+
+const isTreeShakable = function(moduleName) {
+  return TREE_SHAKABLE_MODULES.includes(moduleName)
+}
+
+const TREE_SHAKABLE_MODULES = ['next']
 
 // When a file requires another one, we apply the top-level logic recursively
 const getLocalImportDependencies = async function(dependency, basedir, packageJson, state) {
@@ -110,9 +117,7 @@ const getLocalImportDependencies = async function(dependency, basedir, packageJs
 
 // When a file requires a module, we find its path inside `node_modules` and
 // use all its published files. We also recurse on the module's dependencies.
-const getModuleDependencies = async function(dependency, basedir, state, packageJson) {
-  const moduleName = getModuleName(dependency)
-
+const getModuleDependencies = async function(moduleName, basedir, state, packageJson) {
   // Happens when doing require("@scope") (not "@scope/name") or other oddities
   // Ignore those.
   if (moduleName === null) {
